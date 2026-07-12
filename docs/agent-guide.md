@@ -1,7 +1,9 @@
 # Agent guide
 
 Agentic Life OS is a state store and control surface, not an autonomous agent.
-Use the HTTP API directly or call the JSON-only `lifeos` command.
+Use the HTTP API directly or call the JSON-only `lifeos` command. The Portal
+has no direct-entry forms: a human expresses intent to the agent, the agent
+writes structured state, and the Portal provides observation and confirmation.
 
 ## Operating loop
 
@@ -72,6 +74,50 @@ also prevent duplicates across different proposals.
 - Additional budget allocation uses `counts_toward_clock: false` and must share
   an `overlap_group` with a clock-counted line in the same proposal.
 - Do not fill a day to 24 hours or moralize unlogged time.
+
+## Adaptive budget review
+
+A personal operating system should adapt when its model repeatedly disagrees
+with reality. Run this review on completed periods only: weekly for Time and
+monthly for Money. Use a rolling four-week Time window and a rolling
+three-month Money window when enough history exists.
+
+The review is a human-governed adaptation loop:
+
+1. **Monitor** — read budget items, actuals, and unbudgeted entries for each
+   completed period.
+2. **Analyze** — identify recurring mismatches and check whether they come from
+   a missing category, wrong classification, exceptional event, unrealistic
+   plan, or a behavior the user wants to change.
+3. **Propose** — show the evidence, the proposed change, its effect on the
+   total budget, and at least one alternative. Do not write yet.
+4. **Confirm** — wait for explicit acceptance of each create, resize, merge, or
+   retirement action.
+5. **Adjust** — apply only accepted changes through the budget API, then read
+   the overview again to verify the result.
+
+Use these as review signals, not automatic rules:
+
+- **Missing item:** a coherent unbudgeted category appears in at least two
+  completed periods. Propose a named item; never hide it inside “miscellaneous.”
+- **Repeatedly over:** Money exceeds 110% in two of three months, or Time
+  exceeds 110% in three of four weeks. Offer resize, reclassification, or a
+  behavior guardrail as distinct explanations.
+- **Repeatedly unused:** Money stays below 50% in three consecutive months, or
+  Time stays below 50% in four consecutive weeks. Offer reduce, merge, retire,
+  or deliberately keep as protected capacity.
+
+For Time, preserve the 168-hour constraint when changing the plan. For Money,
+do not manufacture spending to consume a budget and do not interpret
+underspending as failure. A changed budget describes a better model of intent;
+it is not a retroactive rewrite of actual history.
+
+Suggested review prompt:
+
+> Review the last four completed Time weeks and three completed Money months.
+> Find recurring missing, overused, and unused budget items. For each signal,
+> show the evidence, likely explanations, proposed change, and impact on the
+> total plan. Do not modify any budget until I confirm that specific change.
 
 ## Suggested agent prompts
 

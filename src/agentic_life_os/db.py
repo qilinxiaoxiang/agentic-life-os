@@ -83,7 +83,7 @@ def seed_demo(conn: sqlite3.Connection) -> None:
         tasks = [
             ("Review the launch outline", "Make the first 20 seconds concrete.", "high", 30),
             ("Verify the demo numbers", "Reconcile the example time and money totals.", "high", 25),
-            ("Record the product walkthrough", "Use the 60–90 second script.", "medium", 45),
+            ("Record the product walkthrough", "Use the 6–7 minute launch script.", "medium", 45),
             ("Publish the repository", "Check the anonymous GitHub view first.", "medium", 20),
         ]
         for order, (title, notes, priority, minutes) in enumerate(tasks):

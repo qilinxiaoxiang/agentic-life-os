@@ -3,6 +3,10 @@
 Agentic Life OS is a local ledger and control surface. It does not contain an
 AI model. Agents interact through the versioned HTTP API or the `lifeos` CLI.
 
+The Portal follows an agent-mediated interface: humans observe state and
+confirm durable proposals there, while agents are the normal write path. Do
+not add direct-entry forms for tasks, focus, time, money, accounts, or budgets.
+
 ## Required behavior
 
 - Read `GET /api/v1/context/today` before proposing a daily plan.
@@ -19,6 +23,13 @@ AI model. Agents interact through the versioned HTTP API or the `lifeos` CLI.
 - Physical time counts once. Extra allocation credit must use
   `counts_toward_clock: false` and share an `overlap_group` with a clock-counted
   entry in the same proposal.
+- Treat budgets as revisable planning hypotheses, not performance scores.
+  Periodically inspect completed periods for missing, repeatedly exceeded, or
+  repeatedly unused items. Show the evidence and alternatives, then wait for
+  explicit confirmation before creating, resizing, or retiring a budget item.
+- Never change a budget merely to make a dashboard look successful. First
+  distinguish a bad plan from a classification error or a behavior the user
+  wants to change.
 
 ## Repository boundaries
 

@@ -15,7 +15,40 @@ def test_dashboard_contains_only_three_product_tabs(client):
         assert excluded not in html
 
 
-def test_task_crud_and_completion_are_direct(client):
+def test_dashboard_is_observe_and_confirm_not_direct_entry(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "AGENT-WRITTEN" in html
+    assert "task-form" not in html
+    assert "focus-form" not in html
+    assert "task-check" not in html
+    assert "<input" not in html
+    assert "<textarea" not in html
+
+
+def test_dashboard_keeps_human_confirmation_for_durable_writes(client, today):
+    preview = client.post(
+        "/api/v1/money/proposals",
+        json={
+            "entries": [
+                {
+                    "external_id": "dashboard-confirmation-demo",
+                    "occurred_on": today,
+                    "kind": "expense",
+                    "account_id": "account_checking",
+                    "amount": "4.50",
+                    "currency": "USD",
+                    "category": "food",
+                    "budget_item_id": "budget_food",
+                    "note": "Synthetic review expense",
+                }
+            ]
+        },
+    )
+    assert preview.status_code == 201
+    assert "Confirm & commit" in client.get("/").get_data(as_text=True)
+
+
+def test_task_crud_and_completion_are_available_to_agents(client):
     created = client.post(
         "/api/v1/tasks",
         json={"title": "Make the demo legible", "priority": "high", "estimated_minutes": 20},

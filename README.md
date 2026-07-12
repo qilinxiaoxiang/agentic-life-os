@@ -17,6 +17,22 @@ The app contains no model and stores no AI credentials. Bring Codex, Claude,
 OpenClaw, or any other agent that can call a local HTTP API or command-line
 tool. Your data stays in a local SQLite database.
 
+## Design thesis: Agent-Mediated Software
+
+Agentic Life OS is an experiment in **Agent-Mediated Software**: the human
+expresses intent, an agent translates that intent into structured operations,
+and the application remains the deterministic state and policy layer.
+
+**No forms, only intent.** The Portal is deliberately an observe-and-confirm
+surface, not a data-entry surface. The agent is the only normal write path.
+Humans inspect Today, Time, and Money and explicitly authorize durable ledger
+commits. This keeps conversational input flexible without turning the database
+into unstructured chat history.
+
+This is a specific design pattern, not a claim that natural-language or
+agent-driven interfaces began here. See the [concept brief](docs/concept-brief.md)
+for the related ideas and the boundary this project is testing.
+
 ## Quick start
 
 ```bash
@@ -49,6 +65,12 @@ The operating loop is deliberately small:
 3. **Confirm** — show the normalized preview to the user. Unconfirmed proposals
    do not affect any balance or budget.
 4. **Commit** — after explicit approval, commit the proposal atomically.
+
+The same agent can periodically review completed periods and propose changes
+to the model itself: add a missing budget category, resize a repeatedly missed
+allocation, or retire an unused one. Adaptation is evidence-based and never
+silent; budget changes still require explicit human confirmation. The full
+policy is in the [agent guide](docs/agent-guide.md#adaptive-budget-review).
 
 ### Codex example
 
@@ -107,8 +129,9 @@ does not provide exchange rates or cross-currency totals.
 - No bank, calendar, model, or third-party account is connected.
 - Runtime databases and `.env` files are ignored by Git.
 - CI runs tests, linting, a repository privacy denylist, and secret scanning.
-- Money and time require preview plus explicit commit; tasks remain directly
-  editable because they are easy to reverse.
+- The Portal contains no direct data-entry forms. Reversible task/focus writes
+  go through the agent API; money and time actuals require preview plus an
+  explicit commit.
 
 This is a personal planning ledger, not financial, medical, or legal advice.
 
@@ -123,6 +146,10 @@ This is a personal planning ledger, not financial, medical, or legal advice.
 The project intentionally stops at Today, Time, and Money. Reports, journals,
 habits, health metrics, investment analysis, bank sync, and external
 automations belong in optional integrations rather than the core.
+
+The repository also includes a [6–7 minute launch video script](docs/demo-script.md)
+and a [LinkedIn launch package](docs/linkedin-launch.md) for explaining the
+design pattern with the synthetic demo.
 
 ## License
 

@@ -13,7 +13,7 @@
     <header class="topbar">
       <a class="brand" href="/" aria-label="Agentic Life OS home">
         <span class="brand-mark">A</span>
-        <span><strong>Agentic Life OS</strong><small>local control surface</small></span>
+        <span><strong>Agentic Life OS</strong><small>agent-mediated control surface</small></span>
       </a>
       <div class="system-state">
         <span class="pulse"></span>
@@ -46,20 +46,12 @@
           <article class="card action-card">
             <div class="card-head">
               <div><p class="eyebrow">ACTIONABLE</p><h2>Move the day forward</h2></div>
-              <button class="icon-button" id="show-task-form" aria-label="Add task">+</button>
+              <span class="agent-write-chip">AGENT-WRITTEN</span>
             </div>
-            <form class="quick-form" id="task-form" hidden>
-              <input name="title" required placeholder="What needs to move?" aria-label="Task title">
-              <select name="priority" aria-label="Priority">
-                <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
-              </select>
-              <input name="estimated_minutes" type="number" min="1" placeholder="min" aria-label="Estimated minutes">
-              <button type="submit">Add</button>
-            </form>
             <ol class="task-list" id="task-list">
               {% for task in context.tasks if task.status == 'open' %}
               <li data-task-id="{{ task.id }}">
-                <button class="task-check" aria-label="Complete {{ task.title }}"></button>
+                <span class="task-marker" aria-hidden="true">→</span>
                 <div><strong>{{ task.title }}</strong><p>{{ task.notes }}</p></div>
                 <span class="priority {{ task.priority }}">{{ task.priority }}</span>
                 {% if task.estimated_minutes %}<time>{{ task.estimated_minutes }}m</time>{% endif %}
@@ -74,7 +66,7 @@
             <article class="card focus-card">
               <p class="eyebrow">TODAY'S THESIS</p>
               <blockquote>“A plan becomes an operating system when it can see the ledgers it changes.”</blockquote>
-              <button class="text-button" id="edit-focus">Edit daily focus</button>
+              <p class="read-only-note">Tell your agent what changed; it will update the structured state.</p>
             </article>
             <article class="card agent-card">
               <div class="agent-orbit"><span></span><b>AI</b></div>
@@ -172,19 +164,9 @@
       </section>
     </main>
 
-    <footer><span>Agentic Life OS</span><span>Your agent proposes. You remain the authority.</span><a href="/api/v1/context/today">JSON context ↗</a></footer>
+    <footer><span>Agentic Life OS</span><span>No forms. Express intent; inspect state; confirm durable writes.</span><a href="/api/v1/context/today">JSON context ↗</a></footer>
   </div>
-
-  <dialog id="focus-dialog">
-    <form method="dialog" id="focus-form">
-      <p class="eyebrow">DAILY FOCUS</p><h2>What deserves protection today?</h2>
-      <label>Headline<input name="headline" required value="{{ context.focus.headline if context.focus else '' }}"></label>
-      <label>Brief<textarea name="brief" rows="4">{{ context.focus.brief if context.focus else '' }}</textarea></label>
-      <div><button value="cancel" class="secondary">Cancel</button><button value="save" id="save-focus">Save focus</button></div>
-    </form>
-  </dialog>
   <div class="toast" id="toast" role="status"></div>
-  <script>window.LIFEOS_DATE = {{ context.date | tojson }};</script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
