@@ -73,6 +73,11 @@ also prevent duplicates across different proposals.
 - Clock-counted minutes may not exceed 1,440 on one date.
 - Additional budget allocation uses `counts_toward_clock: false` and must share
   an `overlap_group` with a clock-counted line in the same proposal.
+- `time.consumption.views.categories.ranking` is the default semantic overview;
+  `time.consumption.views.items.ranking` is its item-level drill-down. Both use
+  the same one-copy physical clock. Use their neutral `pace_status` signals to
+  investigate intent versus reality; do not treat protection values as
+  consumption categories, performance scores, or reasons to resize silently.
 - Do not fill a day to 24 hours or moralize unlogged time.
 
 ## Adaptive budget review

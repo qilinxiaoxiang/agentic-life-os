@@ -477,7 +477,12 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/api/v1/time/overview")
     def get_time_overview():
         start = request.args.get("week_start", week_start_for(date.today()))
-        return jsonify({"ok": True, "time": time_overview(g.db, start)})
+        return jsonify(
+            {
+                "ok": True,
+                "time": time_overview(g.db, start, request.args.get("as_of")),
+            }
+        )
 
     @app.get("/api/v1/time/budgets")
     def list_time_budgets():

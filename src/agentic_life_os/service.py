@@ -528,7 +528,188 @@ def money_overview(conn: sqlite3.Connection, month: str, currency: str) -> dict:
     }
 
 
-def time_overview(conn: sqlite3.Connection, week_start: str) -> dict:
+def _time_consumption(
+    items: list[dict],
+    entries: list[dict],
+    *,
+    start: date,
+    end: date,
+    as_of: date,
+) -> dict:
+    """Build a screen-time-style physical ranking with neutral budget pace signals."""
+    physical_by_id: dict[str, int] = {}
+    allocation_by_id: dict[str, int] = {}
+    for entry in entries:
+        key = entry["budget_item_id"] or "unbudgeted"
+        allocation_by_id[key] = allocation_by_id.get(key, 0) + entry["minutes"]
+        if entry["counts_toward_clock"]:
+            physical_by_id[key] = physical_by_id.get(key, 0) + entry["minutes"]
+
+    if as_of < start:
+        elapsed_minutes = 0
+    elif as_of > end:
+        elapsed_minutes = 7 * 24 * 60
+    else:
+        elapsed_minutes = ((as_of - start).days + 1) * 24 * 60
+    week_progress = elapsed_minutes / (7 * 24 * 60) if elapsed_minutes else 0
+
+    def pace(actual: int, planned: int) -> tuple[str, int]:
+        if not planned:
+            return "unbudgeted", 0
+        expected = round(planned * week_progress)
+        delta = actual - expected
+        tolerance = max(30, round(expected * 0.2))
+        if delta > tolerance:
+            return "above", delta
+        if delta < -tolerance:
+            return "below", delta
+        return "on_pace", delta
+
+    total_physical = sum(physical_by_id.values())
+
+    def with_pace(row: dict) -> dict:
+        status, delta = pace(row["allocation_minutes"], row["planned_minutes"])
+        return {**row, "pace_status": status, "pace_delta_minutes": delta}
+
+    def summarize(rows: list[dict]) -> dict:
+        pace_rows = [with_pace(row) for row in rows]
+        ranking = sorted(
+            (row for row in pace_rows if row["physical_minutes"] > 0),
+            key=lambda row: (-row["physical_minutes"], row["label"]),
+        )
+        largest = max((row["physical_minutes"] for row in ranking), default=0)
+        for index, row in enumerate(ranking, start=1):
+            row.update(
+                {
+                    "rank": index,
+                    "share_percent": round(row["physical_minutes"] / total_physical * 100)
+                    if total_physical
+                    else 0,
+                    "bar_percent": round(row["physical_minutes"] / largest * 100)
+                    if largest
+                    else 0,
+                }
+            )
+        above = [row for row in pace_rows if row["pace_status"] == "above"]
+        below = [row for row in pace_rows if row["pace_status"] == "below"]
+        top_three = sum(row["physical_minutes"] for row in ranking[:3])
+        return {
+            "ranking": ranking,
+            "top": ranking[0] if ranking else None,
+            "top_three_share_percent": round(top_three / total_physical * 100)
+            if total_physical
+            else 0,
+            "largest_above_pace": max(
+                above, key=lambda row: row["pace_delta_minutes"], default=None
+            ),
+            "largest_below_pace": min(
+                below, key=lambda row: row["pace_delta_minutes"], default=None
+            ),
+        }
+
+    item_rows = []
+    for item in items:
+        physical = physical_by_id.get(item["id"], 0)
+        allocation = allocation_by_id.get(item["id"], 0)
+        item_rows.append(
+            {
+                "budget_item_id": item["id"],
+                "label": item["label"],
+                "category": item["category"],
+                "category_label": item["category"].replace("_", " ").title(),
+                "protection": item["protection"],
+                "physical_minutes": physical,
+                "allocation_minutes": allocation,
+                "overlap_credit_minutes": max(0, allocation - physical),
+                "planned_minutes": item["weekly_minutes"],
+            }
+        )
+    if "unbudgeted" in allocation_by_id:
+        item_rows.append(
+            {
+                "budget_item_id": None,
+                "label": "Unbudgeted",
+                "category": "uncategorized",
+                "category_label": "Uncategorized",
+                "protection": "unbudgeted",
+                "physical_minutes": physical_by_id.get("unbudgeted", 0),
+                "allocation_minutes": allocation_by_id["unbudgeted"],
+                "overlap_credit_minutes": max(
+                    0,
+                    allocation_by_id["unbudgeted"]
+                    - physical_by_id.get("unbudgeted", 0),
+                ),
+                "planned_minutes": 0,
+            }
+        )
+
+    categories: dict[str, dict] = {}
+    for item in items:
+        key = item["category"] or "uncategorized"
+        group = categories.setdefault(
+            key,
+            {
+                "category": key,
+                "label": key.replace("_", " ").title(),
+                "physical_minutes": 0,
+                "allocation_minutes": 0,
+                "planned_minutes": 0,
+                "item_labels": [],
+            },
+        )
+        group["physical_minutes"] += physical_by_id.get(item["id"], 0)
+        group["allocation_minutes"] += allocation_by_id.get(item["id"], 0)
+        group["planned_minutes"] += item["weekly_minutes"]
+        group["item_labels"].append(item["label"])
+    category_rows = []
+    for group in categories.values():
+        category_rows.append(
+            {
+                **group,
+                "item_count": len(group["item_labels"]),
+                "overlap_credit_minutes": max(
+                    0, group["allocation_minutes"] - group["physical_minutes"]
+                ),
+            }
+        )
+    if "unbudgeted" in allocation_by_id:
+        category_rows.append(
+            {
+                "category": "uncategorized",
+                "label": "Uncategorized",
+                "physical_minutes": physical_by_id.get("unbudgeted", 0),
+                "allocation_minutes": allocation_by_id["unbudgeted"],
+                "planned_minutes": 0,
+                "item_labels": ["Unbudgeted"],
+                "item_count": 1,
+                "overlap_credit_minutes": max(
+                    0,
+                    allocation_by_id["unbudgeted"]
+                    - physical_by_id.get("unbudgeted", 0),
+                ),
+            }
+        )
+
+    return {
+        "default_view": "categories",
+        "views": {
+            "categories": summarize(category_rows),
+            "items": summarize(item_rows),
+        },
+        "elapsed_minutes": elapsed_minutes,
+        "explained_minutes": total_physical,
+        "unexplained_minutes": max(0, elapsed_minutes - total_physical),
+        "coverage_available": elapsed_minutes > 0,
+        "coverage_percent": min(100, round(total_physical / elapsed_minutes * 100))
+        if elapsed_minutes
+        else 0,
+        "week_progress_percent": round(week_progress * 100),
+    }
+
+
+def time_overview(
+    conn: sqlite3.Connection, week_start: str, as_of: str | date | None = None
+) -> dict:
     start = parse_date(week_start, "week_start")
     if start.weekday() != 0:
         raise ValidationError("week_start must be a Monday")
@@ -560,6 +741,13 @@ def time_overview(conn: sqlite3.Connection, week_start: str) -> dict:
     clock = sum(entry["minutes"] for entry in entries if entry["counts_toward_clock"])
     allocation = sum(entry["minutes"] for entry in entries)
     unbudgeted = sum(entry["minutes"] for entry in entries if entry["unbudgeted"])
+    consumption = _time_consumption(
+        items,
+        entries,
+        start=start,
+        end=end,
+        as_of=parse_date(as_of) if isinstance(as_of, str) else as_of or date.today(),
+    )
     return {
         "week_start": week_start,
         "week_end": end.isoformat(),
@@ -569,6 +757,7 @@ def time_overview(conn: sqlite3.Connection, week_start: str) -> dict:
         "overlap_minutes": allocation - clock,
         "unbudgeted_minutes": unbudgeted,
         "physical_whitespace_minutes": 7 * 24 * 60 - clock,
+        "consumption": consumption,
         "items": items,
         "entries": entries,
     }
@@ -600,7 +789,7 @@ def context_today(conn: sqlite3.Connection, date_iso: str, currency: str) -> dic
         "date": date_iso,
         "focus": focus,
         "tasks": tasks,
-        "time": time_overview(conn, week_start_for(day)),
+        "time": time_overview(conn, week_start_for(day), day),
         "money": money_overview(conn, month_for(day), currency),
         "pending_proposals": proposals,
     }

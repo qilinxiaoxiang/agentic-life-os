@@ -10,7 +10,7 @@ separate silos. Agentic Life OS gives an agent one small, explicit operating
 surface:
 
 - **Today** — one daily focus and a ranked list of actionable work.
-- **Time** — a 168-hour weekly budget compared with actual time allocation.
+- **Time** — a 168-hour weekly budget, category/item consumption views, and pace comparison.
 - **Money** — accounts, monthly plans, and actual transactions.
 
 The app contains no model and stores no AI credentials. Bring Codex, Claude,
@@ -118,6 +118,11 @@ are idempotent.
 Time maintains two totals. `clock_minutes` answers where physical time went
 and may not exceed 24 hours per day. `allocation_minutes` answers which budgets
 that time advanced, so deliberate overlap can be larger than clock time.
+The weekly overview ranks only clock-counted minutes. Its default category
+view answers what the time was for (`Work`, `Learning`, `Wellbeing`), while the
+item view exposes the underlying budget rows. Pace signals compare allocation
+credit with the portion of the week already elapsed. Protection values such as
+`committed` and `flexible` remain policy metadata, not consumption categories.
 
 The schema includes a currency code on financial rows so another currency can
 be added without a migration. Version 1 displays each currency separately and

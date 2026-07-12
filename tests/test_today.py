@@ -11,8 +11,21 @@ def test_dashboard_contains_only_three_product_tabs(client):
     assert 'data-tab="today"' in html
     assert 'data-tab="time"' in html
     assert 'data-tab="money"' in html
-    for excluded in ("Reports", "Seedbed", "Habits", "Wellbeing", "Investments"):
-        assert excluded not in html
+    for excluded in ("reports", "seedbed", "habits", "wellbeing", "investments"):
+        assert f'data-tab="{excluded}"' not in html
+
+
+def test_time_panel_contains_weekly_consumption_ranking(client):
+    html = client.get("/#time").get_data(as_text=True)
+    assert 'id="time-consumption-ranking"' in html
+    assert "Where the week went" in html
+    assert "TIME EXPLAINED" in html
+    assert 'data-ranking-view="categories"' in html
+    assert 'data-ranking-view="items"' in html
+    assert 'data-ranking-view-panel="categories"' in html
+    assert 'data-ranking-view-panel="items" hidden' in html
+    assert 'data-ranking-key="wellbeing"' in html
+    assert 'data-ranking-key="time_sleep"' in html
 
 
 def test_dashboard_is_observe_and_confirm_not_direct_entry(client):

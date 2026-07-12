@@ -28,13 +28,44 @@ def test_dual_ledger_preview_and_commit(client, today, week_start):
     assert preview["preview"]["clock_minutes"] == 60
     assert preview["preview"]["allocation_minutes"] == 105
     before = client.get(f"/api/v1/time/overview?week_start={week_start}").json["time"]
-    assert before["clock_minutes"] == 0
 
     client.post(f"/api/v1/time/proposals/{preview['id']}/commit", json={})
     after = client.get(f"/api/v1/time/overview?week_start={week_start}").json["time"]
-    assert after["clock_minutes"] == 60
-    assert after["allocation_minutes"] == 105
-    assert after["overlap_minutes"] == 45
+    assert after["clock_minutes"] == before["clock_minutes"] + 60
+    assert after["allocation_minutes"] == before["allocation_minutes"] + 105
+    assert after["overlap_minutes"] == before["overlap_minutes"] + 45
+
+
+def test_time_overview_has_physical_ranking_without_overlap_double_count(
+    client, today, week_start
+):
+    overview = client.get(
+        f"/api/v1/time/overview?week_start={week_start}&as_of={today}"
+    ).json["time"]
+    consumption = overview["consumption"]
+    item_ranking = consumption["views"]["items"]["ranking"]
+    category_ranking = consumption["views"]["categories"]["ranking"]
+
+    assert consumption["default_view"] == "categories"
+    assert item_ranking[0]["budget_item_id"] == "time_sleep"
+    assert sum(row["physical_minutes"] for row in item_ranking) == overview["clock_minutes"]
+    assert sum(row["physical_minutes"] for row in category_ranking) == overview[
+        "clock_minutes"
+    ]
+    assert "time_learning" not in {row["budget_item_id"] for row in item_ranking}
+    assert next(item for item in overview["items"] if item["id"] == "time_learning")[
+        "actual_minutes"
+    ] > 0
+    wellbeing = next(row for row in category_ranking if row["category"] == "wellbeing")
+    assert wellbeing["item_labels"] == ["Sleep", "Health"]
+    assert wellbeing["physical_minutes"] == sum(
+        row["physical_minutes"]
+        for row in item_ranking
+        if row["category"] == "wellbeing"
+    )
+    assert 0 < consumption["coverage_percent"] <= 100
+    assert consumption["views"]["categories"]["top_three_share_percent"] <= 100
+    assert consumption["views"]["items"]["top_three_share_percent"] <= 100
 
 
 def test_non_clock_entry_requires_clock_peer(client, today):
@@ -85,6 +116,7 @@ def test_physical_time_cannot_exceed_24_hours(client, today):
 
 
 def test_unbudgeted_time_consumes_whitespace(client, today, week_start):
+    before = client.get(f"/api/v1/time/overview?week_start={week_start}").json["time"]
     proposal = client.post(
         "/api/v1/time/proposals",
         json={
@@ -102,7 +134,7 @@ def test_unbudgeted_time_consumes_whitespace(client, today, week_start):
     client.post(f"/api/v1/time/proposals/{proposal['id']}/commit", json={})
     overview = client.get(f"/api/v1/time/overview?week_start={week_start}").json["time"]
     assert overview["unbudgeted_minutes"] == 25
-    assert overview["clock_minutes"] == 25
+    assert overview["clock_minutes"] == before["clock_minutes"] + 25
 
 
 def test_wrong_week_budget_is_rejected(client, week_start):

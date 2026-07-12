@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 
@@ -135,12 +135,12 @@ def seed_demo(conn: sqlite3.Connection) -> None:
             )
 
         time_budgets = [
-            ("time_sleep", "Sleep", "foundation", 56 * 60, "committed"),
+            ("time_sleep", "Sleep", "wellbeing", 56 * 60, "committed"),
             ("time_work", "Work", "work", 40 * 60, "committed"),
-            ("time_health", "Health", "health", 7 * 60, "protected"),
+            ("time_health", "Health", "wellbeing", 7 * 60, "protected"),
             ("time_learning", "Learning", "learning", 5 * 60, "protected"),
             ("time_people", "Relationships", "relationships", 7 * 60, "protected"),
-            ("time_admin", "Life admin", "admin", 4 * 60, "flexible"),
+            ("time_admin", "Life admin", "life_ops", 4 * 60, "flexible"),
         ]
         for order, (item_id, label, category, minutes, protection) in enumerate(time_budgets):
             conn.execute(
@@ -149,6 +149,46 @@ def seed_demo(conn: sqlite3.Connection) -> None:
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (item_id, week_start, label, category, minutes, protection, order, now, now),
             )
+
+        monday = today - timedelta(days=today.weekday())
+        for offset in range(today.weekday() + 1):
+            entry_day = monday + timedelta(days=offset)
+            entry_date = entry_day.isoformat()
+            overlap_group = f"demo-walk-learn-{entry_date}"
+            demo_entries = [
+                ("sleep", 450, "time_sleep", "Sleep", 1, None),
+                ("health", 45, "time_health", "Walk", 1, overlap_group),
+                ("learning", 30, "time_learning", "Lecture during the walk", 0, overlap_group),
+                ("people", 45, "time_people", "Time with people", 1, None),
+            ]
+            if entry_day.weekday() < 5:
+                demo_entries.extend(
+                    [
+                        ("work", 300, "time_work", "Focused work", 1, None),
+                        ("admin", 30, "time_admin", "Life admin", 1, None),
+                    ]
+                )
+            for key, minutes, budget_id, activity, counts, group in demo_entries:
+                conn.execute(
+                    """INSERT INTO time_entries
+                       (id,external_id,entry_date,minutes,budget_item_id,activity,
+                        counts_toward_clock,overlap_group,unbudgeted,note,proposal_id,created_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        new_id("time"),
+                        f"demo-{entry_date}-{key}",
+                        entry_date,
+                        minutes,
+                        budget_id,
+                        activity,
+                        counts,
+                        group,
+                        0,
+                        "Synthetic demo data.",
+                        "demo-seed",
+                        now,
+                    ),
+                )
 
 
 def json_text(value) -> str:

@@ -169,8 +169,12 @@ paths:
         - in: query
           name: week_start
           schema: {type: string, format: date}
+        - in: query
+          name: as_of
+          description: Date used to calculate elapsed-week pace and explained-time coverage
+          schema: {type: string, format: date}
       responses:
-        "200": {description: Time overview}
+        "200": {description: Time overview with category/item physical rankings and pace signals}
   /api/v1/time/budgets:
     get:
       summary: List weekly time budget items

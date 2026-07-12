@@ -85,12 +85,55 @@
       </section>
 
       <section class="panel" data-panel="time">
+        {% set consumption = context.time.consumption %}
+        {% set pace_labels = {'above': 'Above pace', 'below': 'Below pace', 'on_pace': 'On pace', 'unbudgeted': 'Unbudgeted'} %}
         <div class="metric-row">
           <article><span>Weekly budget</span><strong>{{ duration(context.time.planned_minutes) }}</strong><small>of 168 hours</small></article>
           <article><span>Clock time</span><strong>{{ duration(context.time.clock_minutes) }}</strong><small>physical time</small></article>
           <article><span>Allocation</span><strong>{{ duration(context.time.allocation_minutes) }}</strong><small>budget credit</small></article>
           <article><span>Overlap</span><strong>{{ duration(context.time.overlap_minutes) }}</strong><small>intentional dual use</small></article>
         </div>
+        <article class="card consumption-card" id="time-consumption-ranking">
+          <div class="consumption-head">
+            <div><p class="eyebrow">WEEKLY CONSUMPTION · PHYSICAL CLOCK</p><h2>Where the week went</h2><p>Start with meaningful categories, then drill into the individual budget items behind them.</p>
+              <div class="ranking-toggle" role="group" aria-label="Time ranking level">
+                <button type="button" class="is-active" data-ranking-view="categories" aria-pressed="true">By category</button>
+                <button type="button" data-ranking-view="items" aria-pressed="false">By item</button>
+              </div>
+            </div>
+            <div class="coverage-badge {{ 'is-partial' if consumption.coverage_available and consumption.coverage_percent < 90 else '' }}">
+              <span>TIME EXPLAINED</span>
+              {% if consumption.coverage_available %}<strong>{{ consumption.coverage_percent }}%</strong><small>{{ duration(consumption.explained_minutes) }} logged / {{ duration(consumption.elapsed_minutes) }} elapsed</small>{% else %}<strong>—</strong><small>Waiting for the first ledger entry</small>{% endif %}
+            </div>
+          </div>
+          {% for view_name, view in [('categories', consumption.views.categories), ('items', consumption.views['items'])] %}
+          <div class="ranking-view" data-ranking-view-panel="{{ view_name }}" {% if view_name != consumption.default_view %}hidden{% endif %}>
+            {% if view.ranking %}
+            <div class="consumption-signals">
+              <div><span>Largest destination</span><strong>{{ view.top.label }}</strong><small>{{ duration(view.top.physical_minutes) }} · {{ view.top.share_percent }}%</small></div>
+              <div><span>Top 3 concentration</span><strong>{{ view.top_three_share_percent }}%</strong><small>of explained clock time</small></div>
+              <div><span>Most above pace</span>{% if view.largest_above_pace %}<strong>{{ view.largest_above_pace.label }}</strong><small>+{{ duration(view.largest_above_pace.pace_delta_minutes) }}</small>{% else %}<strong>—</strong><small>No material signal</small>{% endif %}</div>
+              <div><span>Most below pace</span>{% if view.largest_below_pace %}<strong>{{ view.largest_below_pace.label }}</strong><small>{{ duration(view.largest_below_pace.pace_delta_minutes | abs) }} behind pace</small>{% else %}<strong>—</strong><small>No material signal</small>{% endif %}</div>
+            </div>
+            <ol class="consumption-ranking">
+              {% for row in view.ranking %}
+              <li class="pace-{{ row.pace_status }}" data-ranking-key="{{ row.category if view_name == 'categories' else row.budget_item_id or 'unbudgeted' }}">
+                <span class="rank-number">{{ '%02d' | format(row.rank) }}</span>
+                <div class="rank-main">
+                  <div><strong>{{ row.label }}</strong><span>{{ row.share_percent }}%</span></div>
+                  <div class="rank-bar"><i style="width: {{ row.bar_percent }}%"></i></div>
+                  <small>{% if view_name == 'categories' %}{{ row.item_count }} item{{ '' if row.item_count == 1 else 's' }} · {{ row.item_labels | join(', ') }}{% else %}{{ row.category_label }}{% endif %}{% if row.overlap_credit_minutes %} · +{{ duration(row.overlap_credit_minutes) }} overlap credit{% endif %}</small>
+                </div>
+                <div class="rank-hours"><strong>{{ duration(row.physical_minutes) }}</strong><span>physical</span></div>
+                <div class="rank-pace"><b>{{ pace_labels[row.pace_status] }}</b>{% if row.planned_minutes %}<small>{{ duration(row.allocation_minutes) }} / {{ duration(row.planned_minutes) }} allocated</small>{% else %}<small>Outside the weekly plan</small>{% endif %}</div>
+              </li>
+              {% endfor %}
+            </ol>
+            {% else %}<p class="consumption-empty">No physical time has been committed for this week yet.</p>{% endif %}
+          </div>
+          {% endfor %}
+          <p class="consumption-note">Categories describe what the time was for. Committed, protected, and flexible remain budget-policy metadata—not consumption categories. Physical minutes are counted once in both views.</p>
+        </article>
         <div class="content-grid">
           <article class="card budget-card">
             <div class="card-head"><div><p class="eyebrow">168-HOUR BUDGET</p><h2>{{ context.time.week_start }} → {{ context.time.week_end }}</h2></div></div>
