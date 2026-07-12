@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "external_id": "demo-coffee-$TODAY",
+      "occurred_on": "$TODAY",
+      "kind": "expense",
+      "account_id": "account_checking",
+      "amount": "4.50",
+      "currency": "USD",
+      "category": "food",
+      "budget_item_id": "budget_food",
+      "note": "Coffee during the product review"
+    }
+  ]
+}

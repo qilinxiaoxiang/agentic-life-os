@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A local-first personal OS for Today, Time, and Money.">
+  <title>Agentic Life OS</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Agentic Life OS home">
+        <span class="brand-mark">A</span>
+        <span><strong>Agentic Life OS</strong><small>local control surface</small></span>
+      </a>
+      <div class="system-state">
+        <span class="pulse"></span>
+        <span>Local · {{ settings.currency }} · {{ settings.timezone }}</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">{{ context.date }} · OPERATING VIEW</p>
+          <h1>{{ context.focus.headline if context.focus else 'Choose today’s focus' }}</h1>
+          <p>{{ context.focus.brief if context.focus else 'Give your agent one outcome worth protecting today.' }}</p>
+        </div>
+        <div class="hero-metrics">
+          <div><span>OPEN</span><strong>{{ context.tasks | selectattr('status', 'equalto', 'open') | list | length }}</strong><small>actions</small></div>
+          <div><span>TIME</span><strong>{{ duration(context.time.allocation_minutes) }}</strong><small>allocated</small></div>
+          <div><span>MONEY</span><strong>{{ money_symbol }}{{ compact_money(context.money.expense_remaining) }}</strong><small>left this month</small></div>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="Life OS modules">
+        <button class="tab is-active" data-tab="today">Today <span>{{ context.tasks | selectattr('status', 'equalto', 'open') | list | length }}</span></button>
+        <button class="tab" data-tab="time">Time <span>{{ duration(context.time.planned_minutes) }}</span></button>
+        <button class="tab" data-tab="money">Money <span>{{ settings.currency }}</span></button>
+      </nav>
+
+      <section class="panel is-active" data-panel="today">
+        <div class="content-grid today-grid">
+          <article class="card action-card">
+            <div class="card-head">
+              <div><p class="eyebrow">ACTIONABLE</p><h2>Move the day forward</h2></div>
+              <button class="icon-button" id="show-task-form" aria-label="Add task">+</button>
+            </div>
+            <form class="quick-form" id="task-form" hidden>
+              <input name="title" required placeholder="What needs to move?" aria-label="Task title">
+              <select name="priority" aria-label="Priority">
+                <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+              </select>
+              <input name="estimated_minutes" type="number" min="1" placeholder="min" aria-label="Estimated minutes">
+              <button type="submit">Add</button>
+            </form>
+            <ol class="task-list" id="task-list">
+              {% for task in context.tasks if task.status == 'open' %}
+              <li data-task-id="{{ task.id }}">
+                <button class="task-check" aria-label="Complete {{ task.title }}"></button>
+                <div><strong>{{ task.title }}</strong><p>{{ task.notes }}</p></div>
+                <span class="priority {{ task.priority }}">{{ task.priority }}</span>
+                {% if task.estimated_minutes %}<time>{{ task.estimated_minutes }}m</time>{% endif %}
+              </li>
+              {% else %}
+              <li class="empty">Nothing open. Give the day one meaningful move.</li>
+              {% endfor %}
+            </ol>
+          </article>
+
+          <aside class="side-stack">
+            <article class="card focus-card">
+              <p class="eyebrow">TODAY'S THESIS</p>
+              <blockquote>“A plan becomes an operating system when it can see the ledgers it changes.”</blockquote>
+              <button class="text-button" id="edit-focus">Edit daily focus</button>
+            </article>
+            <article class="card agent-card">
+              <div class="agent-orbit"><span></span><b>AI</b></div>
+              <div><p class="eyebrow">AGENT LOOP</p><h3>Observe → Propose → Confirm → Commit</h3>
+              <p>Tasks are reversible. Time and money wait for your approval.</p></div>
+            </article>
+            {% if proposals %}
+            <article class="card proposal-summary">
+              <p class="eyebrow">WAITING FOR YOU</p>
+              <strong>{{ proposals | length }} ledger proposal{{ '' if proposals | length == 1 else 's' }}</strong>
+              <p>Review them inside Time or Money before committing.</p>
+            </article>
+            {% endif %}
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="time">
+        <div class="metric-row">
+          <article><span>Weekly budget</span><strong>{{ duration(context.time.planned_minutes) }}</strong><small>of 168 hours</small></article>
+          <article><span>Clock time</span><strong>{{ duration(context.time.clock_minutes) }}</strong><small>physical time</small></article>
+          <article><span>Allocation</span><strong>{{ duration(context.time.allocation_minutes) }}</strong><small>budget credit</small></article>
+          <article><span>Overlap</span><strong>{{ duration(context.time.overlap_minutes) }}</strong><small>intentional dual use</small></article>
+        </div>
+        <div class="content-grid">
+          <article class="card budget-card">
+            <div class="card-head"><div><p class="eyebrow">168-HOUR BUDGET</p><h2>{{ context.time.week_start }} → {{ context.time.week_end }}</h2></div></div>
+            <div class="budget-list">
+              {% for item in context.time['items'] %}
+              {% set width = ([100, (item.actual_minutes / item.weekly_minutes * 100 if item.weekly_minutes else 0)] | min) %}
+              <div class="budget-line">
+                <div><strong>{{ item.label }}</strong><span class="guardrail {{ item.protection }}">{{ item.protection }}</span></div>
+                <div class="bar"><i style="width: {{ width }}%"></i></div>
+                <p><b>{{ duration(item.actual_minutes) }}</b> / {{ duration(item.weekly_minutes) }} <span>{{ duration(item.remaining_minutes | abs) }} {{ 'over' if item.remaining_minutes < 0 else 'left' }}</span></p>
+              </div>
+              {% endfor %}
+            </div>
+          </article>
+          <aside class="side-stack">
+            <article class="card whitespace-card">
+              <p class="eyebrow">PHYSICAL WHITESPACE</p>
+              <strong>{{ duration(context.time.physical_whitespace_minutes) }}</strong>
+              <p>Unlogged clock time remaining in this week.</p>
+            </article>
+            {% for proposal in proposals if proposal.kind == 'time' %}
+            <article class="card pending-card">
+              <p class="eyebrow">PENDING TIME</p>
+              <strong>{{ proposal.preview.entries | length }} entries · {{ duration(proposal.preview.clock_minutes) }} clock</strong>
+              <ul>{% for entry in proposal.preview.entries %}<li>{{ entry.activity }} <b>{{ duration(entry.minutes) }}</b></li>{% endfor %}</ul>
+              <button class="commit-proposal" data-kind="time" data-id="{{ proposal.id }}">Confirm & commit</button>
+            </article>
+            {% endfor %}
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel" data-panel="money">
+        <div class="metric-row money-row">
+          <article><span>Net position</span><strong>{{ money_symbol }}{{ context.money.net_worth }}</strong><small>{{ settings.currency }}</small></article>
+          <article><span>Monthly plan</span><strong>{{ money_symbol }}{{ context.money.expense_budget }}</strong><small>planned expenses</small></article>
+          <article><span>Actual</span><strong>{{ money_symbol }}{{ context.money.expense_actual }}</strong><small>posted expenses</small></article>
+          <article><span>Remaining</span><strong>{{ money_symbol }}{{ context.money.expense_remaining }}</strong><small>this month</small></article>
+        </div>
+        <div class="content-grid money-grid">
+          <article class="card budget-card">
+            <div class="card-head"><div><p class="eyebrow">MONTHLY MONEY PLAN</p><h2>{{ context.money.month }}</h2></div><span class="currency-chip">{{ settings.currency }}</span></div>
+            <div class="budget-list money-list">
+              {% for item in context.money.categories %}
+              {% set width = ([100, (item.actual_minor / item.amount_minor * 100 if item.amount_minor else 0)] | min) %}
+              <div class="budget-line">
+                <div><strong>{{ item.title }}</strong><span>{{ item.category }}</span></div>
+                <div class="bar"><i style="width: {{ width }}%"></i></div>
+                <p><b>{{ money_symbol }}{{ item.actual }}</b> / {{ money_symbol }}{{ item.amount }} <span>{{ money_symbol }}{{ item.remaining }} {{ 'over' if item.over else 'left' }}</span></p>
+              </div>
+              {% endfor %}
+            </div>
+          </article>
+          <aside class="side-stack">
+            <article class="card accounts-card">
+              <p class="eyebrow">ACCOUNTS</p>
+              {% for account in context.money.accounts %}
+              <div><span>{{ account.name }}<small>{{ account.account_type }}</small></span><strong>{{ money_symbol }}{{ account.balance }}</strong></div>
+              {% endfor %}
+            </article>
+            {% for proposal in proposals if proposal.kind == 'money' %}
+            <article class="card pending-card">
+              <p class="eyebrow">PENDING MONEY</p>
+              <strong>{{ proposal.preview.entries | length }} entries waiting</strong>
+              <ul>{% for entry in proposal.preview.entries %}<li>{{ entry.note }} <b>{{ money_symbol }}{{ entry.amount }}</b></li>{% endfor %}</ul>
+              <button class="commit-proposal" data-kind="money" data-id="{{ proposal.id }}">Confirm & commit</button>
+            </article>
+            {% endfor %}
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>Agentic Life OS</span><span>Your agent proposes. You remain the authority.</span><a href="/api/v1/context/today">JSON context ↗</a></footer>
+  </div>
+
+  <dialog id="focus-dialog">
+    <form method="dialog" id="focus-form">
+      <p class="eyebrow">DAILY FOCUS</p><h2>What deserves protection today?</h2>
+      <label>Headline<input name="headline" required value="{{ context.focus.headline if context.focus else '' }}"></label>
+      <label>Brief<textarea name="brief" rows="4">{{ context.focus.brief if context.focus else '' }}</textarea></label>
+      <div><button value="cancel" class="secondary">Cancel</button><button value="save" id="save-focus">Save focus</button></div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status"></div>
+  <script>window.LIFEOS_DATE = {{ context.date | tojson }};</script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

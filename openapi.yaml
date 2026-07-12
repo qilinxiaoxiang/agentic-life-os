@@ -1,0 +1,257 @@
+openapi: 3.1.0
+info:
+  title: Agentic Life OS API
+  version: 1.0.0
+  description: Local API for Today, Time, and Money.
+servers:
+  - url: http://127.0.0.1:5050
+paths:
+  /api/v1/settings:
+    get:
+      summary: Read the primary currency and timezone
+      responses:
+        "200": {description: Installation settings}
+    patch:
+      summary: Change empty-installation currency or timezone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency: {type: string, minLength: 3, maxLength: 3}
+                timezone: {type: string}
+      responses:
+        "200": {description: Updated settings}
+  /api/v1/context/today:
+    get:
+      summary: Read the combined operating context
+      parameters:
+        - in: query
+          name: date
+          schema: {type: string, format: date}
+      responses:
+        "200": {description: Today, Time, and Money context}
+  /api/v1/today/{date}:
+    put:
+      summary: Create or replace the daily focus
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema: {type: string, format: date}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [headline]
+              properties:
+                headline: {type: string}
+                brief: {type: string}
+                source: {type: string}
+      responses:
+        "200": {description: Updated focus}
+  /api/v1/tasks:
+    get:
+      summary: List actionables
+      responses:
+        "200": {description: Task list}
+    post:
+      summary: Create an actionable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TaskInput"}
+      responses:
+        "201": {description: Created task}
+  /api/v1/tasks/{task_id}:
+    get:
+      summary: Read one actionable
+      parameters: [{$ref: "#/components/parameters/TaskId"}]
+      responses:
+        "200": {description: Task}
+    patch:
+      summary: Edit or complete an actionable
+      parameters: [{$ref: "#/components/parameters/TaskId"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TaskInput"}
+      responses:
+        "200": {description: Updated task}
+    delete:
+      summary: Delete an actionable
+      parameters: [{$ref: "#/components/parameters/TaskId"}]
+      responses:
+        "200": {description: Deleted task id}
+  /api/v1/money/overview:
+    get:
+      summary: Read accounts, monthly plan, and actuals
+      parameters:
+        - in: query
+          name: month
+          schema: {type: string, pattern: "^[0-9]{4}-[0-9]{2}$"}
+        - in: query
+          name: currency
+          schema: {type: string, minLength: 3, maxLength: 3}
+      responses:
+        "200": {description: Money overview}
+  /api/v1/money/accounts:
+    get:
+      summary: List accounts
+      responses:
+        "200": {description: Account list}
+    post:
+      summary: Create an asset or liability account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                account_type: {type: string, enum: [asset, liability]}
+                currency: {type: string, minLength: 3, maxLength: 3}
+                opening_balance: {type: string}
+      responses:
+        "201": {description: Created account}
+  /api/v1/money/accounts/{account_id}:
+    patch:
+      summary: Rename or reorder an unused account
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Updated account}
+    delete:
+      summary: Delete an account that has no transactions
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Deleted account id}
+  /api/v1/money/budgets:
+    get:
+      summary: List monthly money budget items
+      responses:
+        "200": {description: Money budget list}
+    post:
+      summary: Create a monthly money budget item
+      responses:
+        "201": {description: Created budget item id}
+  /api/v1/money/budgets/{item_id}:
+    patch:
+      summary: Update a money budget item
+      parameters: [{$ref: "#/components/parameters/ItemId"}]
+      responses:
+        "200": {description: Updated budget item}
+    delete:
+      summary: Delete an unused money budget item
+      parameters: [{$ref: "#/components/parameters/ItemId"}]
+      responses:
+        "200": {description: Deleted budget item id}
+  /api/v1/time/overview:
+    get:
+      summary: Read the weekly 168-hour budget and actuals
+      parameters:
+        - in: query
+          name: week_start
+          schema: {type: string, format: date}
+      responses:
+        "200": {description: Time overview}
+  /api/v1/time/budgets:
+    get:
+      summary: List weekly time budget items
+      responses:
+        "200": {description: Time budget list}
+    post:
+      summary: Create a weekly time budget item
+      responses:
+        "201": {description: Created budget item id}
+  /api/v1/time/budgets/{item_id}:
+    patch:
+      summary: Update a time budget item
+      parameters: [{$ref: "#/components/parameters/ItemId"}]
+      responses:
+        "200": {description: Updated budget item}
+    delete:
+      summary: Delete an unused time budget item
+      parameters: [{$ref: "#/components/parameters/ItemId"}]
+      responses:
+        "200": {description: Deleted budget item id}
+  /api/v1/{kind}/proposals:
+    post:
+      summary: Validate and preview a money or time batch without ledger mutation
+      parameters:
+        - in: path
+          name: kind
+          required: true
+          schema: {type: string, enum: [money, time]}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entries]
+              properties:
+                entries: {type: array, minItems: 1, items: {type: object}}
+      responses:
+        "201": {description: Pending normalized proposal}
+  /api/v1/{kind}/proposals/{proposal_id}/commit:
+    post:
+      summary: Atomically commit a confirmed proposal
+      parameters:
+        - in: path
+          name: kind
+          required: true
+          schema: {type: string, enum: [money, time]}
+        - in: path
+          name: proposal_id
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Idempotent commit result}
+  /api/v1/proposals:
+    get:
+      summary: List pending or committed proposals
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [pending, committed], default: pending}
+      responses:
+        "200": {description: Proposal list}
+components:
+  parameters:
+    TaskId:
+      in: path
+      name: task_id
+      required: true
+      schema: {type: string}
+    ItemId:
+      in: path
+      name: item_id
+      required: true
+      schema: {type: string}
+  schemas:
+    TaskInput:
+      type: object
+      properties:
+        title: {type: string}
+        notes: {type: string}
+        priority: {type: string, enum: [low, medium, high]}
+        due_date: {type: [string, "null"], format: date}
+        estimated_minutes: {type: [integer, "null"], minimum: 1}
+        status: {type: string, enum: [open, done]}

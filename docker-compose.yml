@@ -1,0 +1,22 @@
+services:
+  lifeos:
+    build: .
+    ports:
+      - "127.0.0.1:5050:5050"
+    environment:
+      LIFEOS_DB_PATH: /data/lifeos.sqlite
+      LIFEOS_HOST: 0.0.0.0
+      LIFEOS_PORT: 5050
+      LIFEOS_TIMEZONE: ${LIFEOS_TIMEZONE:-UTC}
+      LIFEOS_CURRENCY: ${LIFEOS_CURRENCY:-USD}
+      LIFEOS_DEMO: ${LIFEOS_DEMO:-1}
+    volumes:
+      - lifeos-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5050/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  lifeos-data:

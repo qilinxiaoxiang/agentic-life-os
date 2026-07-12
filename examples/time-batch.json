@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "external_id": "demo-walk-$TODAY",
+      "date": "$TODAY",
+      "minutes": 45,
+      "budget_item_id": "time_health",
+      "activity": "Walk while reviewing the demo",
+      "counts_toward_clock": true,
+      "overlap_group": "walk-review"
+    },
+    {
+      "external_id": "demo-learning-overlap-$TODAY",
+      "date": "$TODAY",
+      "minutes": 30,
+      "budget_item_id": "time_learning",
+      "activity": "Product review during the walk",
+      "counts_toward_clock": false,
+      "overlap_group": "walk-review"
+    }
+  ]
+}
