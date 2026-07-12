@@ -35,6 +35,9 @@ for the related ideas and the boundary this project is testing.
 
 ## Quick start
 
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if
+`docker compose` is not already available, then run:
+
 ```bash
 git clone https://github.com/qilinxiaoxiang/agentic-life-os.git
 cd agentic-life-os
@@ -45,6 +48,34 @@ Open [http://127.0.0.1:5050](http://127.0.0.1:5050). The default container
 starts with synthetic demo data in USD. To start clean, copy `.env.example` to
 `.env` and set `LIFEOS_DEMO=0`. Set `LIFEOS_CURRENCY` to another ISO 4217 code
 before the first run if USD is not your primary currency.
+
+### Open it on your phone (optional)
+
+Keep the app bound to localhost and use a private Tailscale network instead of
+opening port 5050 to the public internet:
+
+1. Install [Tailscale](https://tailscale.com/download) on the computer running
+   Life OS and on your phone. Sign in to the same tailnet on both devices.
+2. With Life OS running, share the local service inside that tailnet:
+
+   ```bash
+   tailscale serve --bg localhost:5050
+   ```
+
+3. Open the private HTTPS URL printed by Tailscale on your phone. Use
+   `tailscale serve status` to find it again.
+
+This uses [Tailscale Serve](https://tailscale.com/docs/reference/tailscale-cli/serve),
+which is tailnet-only. Do not use Tailscale Funnel for a personal ledger;
+Funnel makes the service public. Life OS has no application-level login, so
+the Tailscale access boundary is part of the setup.
+
+If you want an agent to handle the computer-side setup, open the parent folder
+in your coding agent and say:
+
+> Clone Agentic Life OS, read AGENTS.md, start the synthetic Docker demo, and
+> verify `/health`. Then help me make it reachable from my phone with Tailscale
+> Serve. Keep it private to my tailnet and do not enable Funnel.
 
 ### Local Python setup
 
