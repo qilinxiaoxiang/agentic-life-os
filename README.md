@@ -115,8 +115,8 @@ The CLI gives agents a model-independent interface:
 
 ```bash
 lifeos context
-lifeos task add "Review the launch outline" --priority high --minutes 30
-lifeos focus set "Ship a clear product walkthrough" --brief "Finish the demo, verify the numbers, publish."
+lifeos task add "Review where the week went" --priority high --minutes 15
+lifeos focus set "Plan a balanced week" --brief "Protect deep work, recovery, and visible spending."
 lifeos money overview
 lifeos money preview examples/money-batch.json
 lifeos money commit <proposal-id>

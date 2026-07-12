@@ -74,17 +74,37 @@ def seed_demo(conn: sqlite3.Connection) -> None:
             "INSERT INTO daily_focus VALUES (?, ?, ?, ?, ?)",
             (
                 today_iso,
-                "Ship a clear product walkthrough",
-                "Finish the demo, verify the ledgers, and make the story easy to repeat.",
+                "Plan a balanced week",
+                "Protect deep work, recovery, and visible spending.",
                 "demo-agent",
                 now,
             ),
         )
         tasks = [
-            ("Review the launch outline", "Make the first 20 seconds concrete.", "high", 30),
-            ("Verify the demo numbers", "Reconcile the example time and money totals.", "high", 25),
-            ("Record the product walkthrough", "Use the 6–7 minute launch script.", "medium", 45),
-            ("Publish the repository", "Check the anonymous GitHub view first.", "medium", 20),
+            (
+                "Choose tomorrow's top two priorities",
+                "Decide what should move before anything else.",
+                "high",
+                20,
+            ),
+            (
+                "Review where the week went",
+                "Compare the Time ranking with the 168-hour plan.",
+                "high",
+                15,
+            ),
+            (
+                "Reconcile recent spending",
+                "Prepare any missing transactions for confirmation.",
+                "medium",
+                15,
+            ),
+            (
+                "Protect a recovery block",
+                "Reserve an evening with no scheduled work.",
+                "medium",
+                10,
+            ),
         ]
         for order, (title, notes, priority, minutes) in enumerate(tasks):
             conn.execute(
