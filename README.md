@@ -1,7 +1,44 @@
 # Agentic Life OS
 
-**A local-first personal operating system where an AI agent helps you allocate
-your two scarcest resources: time and money.**
+**An open-source experiment in a different division of labor between people
+and software.**
+
+For most of software history, one assumption shaped the entire product: the
+human would operate it. Product teams encoded every valid path into buttons,
+menus, and forms, then users learned how to navigate those paths.
+
+Agents break that assumption.
+
+A person can state the goal and judge the result. An agent can operate the
+system. Deterministic code can keep the rules and state trustworthy. The UI can
+stop collecting every instruction and become a live surface for inspection,
+approval, and change.
+
+Agentic Life OS is one open-source test of this method. The personal operating
+system is the proof; **the operator shift is the point**.
+
+## The operator shift
+
+This project calls the pattern **Agent-Mediated Software**:
+
+- **Human** — expresses intent, exercises judgment, and retains authority over
+  durable or risky changes.
+- **Agent** — becomes the normal operator, translating intent into typed,
+  inspectable operations.
+- **Code** — remains the deterministic state, validation, and policy layer.
+- **UI** — becomes the place to observe state, inspect proposals, approve
+  consequences, and change direction.
+
+**No forms, only intent.** This does not mean “no UI,” nor does it replace
+structured software with chat history. It changes who normally operates the
+software while preserving a legible, governed system underneath.
+
+This is a specific design pattern, not a claim that natural-language software
+or agent-driven interfaces began here. See the
+[concept brief](docs/concept-brief.md) for the related ideas, tradeoffs, and the
+boundary this project is testing.
+
+## Why a personal operating system?
 
 ![Agentic Life OS dashboard](docs/assets/dashboard.jpg)
 
@@ -16,22 +53,6 @@ surface:
 The app contains no model and stores no AI credentials. Bring Codex, Claude,
 OpenClaw, or any other agent that can call a local HTTP API or command-line
 tool. Your data stays in a local SQLite database.
-
-## Design thesis: Agent-Mediated Software
-
-Agentic Life OS is an experiment in **Agent-Mediated Software**: the human
-expresses intent, an agent translates that intent into structured operations,
-and the application remains the deterministic state and policy layer.
-
-**No forms, only intent.** The Portal is deliberately an observe-and-confirm
-surface, not a data-entry surface. The agent is the only normal write path.
-Humans inspect Today, Time, and Money and explicitly authorize durable ledger
-commits. This keeps conversational input flexible without turning the database
-into unstructured chat history.
-
-This is a specific design pattern, not a claim that natural-language or
-agent-driven interfaces began here. See the [concept brief](docs/concept-brief.md)
-for the related ideas and the boundary this project is testing.
 
 ## Quick start
 
