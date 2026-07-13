@@ -8,27 +8,25 @@ post. The image and post should stand on their own before anyone clicks.
 
 ## Post copy
 
-A required field is work the software has outsourced to you.
+For most of software history, one assumption shaped the entire product: the
+human would operate it.
 
-Pick a category. Fix the date. Learn the product team's categories. For years,
-product design treated this as a UX problem: clearer forms, smarter defaults,
-better error messages.
+Every valid path had to be designed in advance. Product teams encoded those
+paths into buttons, menus, and forms. Users learned how to navigate them.
 
-The contract underneath it is expiring. The human no longer has to be the
-operator.
+Agents break that assumption.
 
-In my Life OS, I can say, "That train ride also counted as study time." The
-agent records one physical hour, credits the learning budget, and redraws the
-dashboard. I don't hunt for the right fields. I inspect the result and correct
-it if needed.
+A person can state the goal and judge the result. An agent can operate the
+system. Code can keep the rules and state trustworthy. The UI can stop
+collecting every instruction and become a live surface for inspection,
+approval, and change.
 
-The operator changed: human → agent → interface → human. The page stops
-controlling the path. It becomes a live view I can reshape as my life changes.
+This is a different division of labor between people and software. The human
+moves from operating someone else's workflow to directing a system that can
+adapt.
 
-Validation did not disappear. It disappeared from my job description. Code
-still protects the ledger. The agent handles translation. I keep authority.
-
-I open-sourced the experiment:
+I built Agentic Life OS as one open-source test of this method. The project is
+the proof; the operator shift is the point.
 
 Article: https://shawnxiang.com/articles/agentic-life-os/
 
