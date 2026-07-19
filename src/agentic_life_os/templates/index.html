@@ -80,6 +80,22 @@
               <p>Review them inside Time or Money before committing.</p>
             </article>
             {% endif %}
+            {% for proposal in adjustment_proposals %}
+            <article class="card pending-card adjustment-card">
+              <p class="eyebrow">MODEL CHANGE · {{ proposal.kind | upper }}</p>
+              <strong>{{ proposal.action | title }} budget proposal</strong>
+              <p>{{ proposal.preview.evidence.summary }}</p>
+              <ul>
+                <li>{{ proposal.preview.evidence.observed_periods }} observed period{{ '' if proposal.preview.evidence.observed_periods == 1 else 's' }}</li>
+                <li>Total: {{ proposal.preview.total_effect.before }} → {{ proposal.preview.total_effect.after }} {{ proposal.preview.total_effect.unit }}</li>
+                <li>Alternative: {{ proposal.preview.evidence.alternative }}</li>
+              </ul>
+              <div class="proposal-actions">
+                <button class="decide-adjustment" data-decision="commit" data-id="{{ proposal.id }}">Approve & apply</button>
+                <button class="decide-adjustment secondary" data-decision="reject" data-id="{{ proposal.id }}">Reject</button>
+              </div>
+            </article>
+            {% endfor %}
           </aside>
         </div>
       </section>

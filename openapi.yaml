@@ -237,6 +237,52 @@ paths:
           schema: {type: string, enum: [pending, committed], default: pending}
       responses:
         "200": {description: Proposal list}
+  /api/v1/budget-adjustments:
+    get:
+      summary: List reviewable budget-model changes
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [pending, committed, rejected], default: pending}
+      responses:
+        "200": {description: Budget adjustment proposal list}
+    post:
+      summary: Preview a create, resize, or retire action without changing a budget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, action, change, evidence]
+              properties:
+                kind: {type: string, enum: [money, time]}
+                action: {type: string, enum: [create, resize, retire]}
+                target_id: {type: string}
+                change: {type: object}
+                evidence:
+                  type: object
+                  required: [summary, observed_periods, alternative]
+                  properties:
+                    summary: {type: string}
+                    observed_periods: {type: integer, minimum: 1}
+                    alternative: {type: string}
+      responses:
+        "201": {description: Pending model-change proposal with before/after preview}
+  /api/v1/budget-adjustments/{proposal_id}/{decision}:
+    post:
+      summary: Commit or reject a reviewed budget-model change
+      parameters:
+        - in: path
+          name: proposal_id
+          required: true
+          schema: {type: string}
+        - in: path
+          name: decision
+          required: true
+          schema: {type: string, enum: [commit, reject]}
+      responses:
+        "200": {description: Idempotent decision result}
 components:
   parameters:
     TaskId:

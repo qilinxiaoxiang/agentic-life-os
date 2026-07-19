@@ -50,3 +50,17 @@ $$('.commit-proposal').forEach((button) => button.addEventListener('click', asyn
     toast(error.message);
   }
 }));
+
+$$('.decide-adjustment').forEach((button) => button.addEventListener('click', async () => {
+  button.disabled = true;
+  try {
+    await api(`/api/v1/budget-adjustments/${button.dataset.id}/${button.dataset.decision}`, {
+      method: "POST",
+      body: "{}",
+    });
+    location.reload();
+  } catch (error) {
+    button.disabled = false;
+    toast(error.message);
+  }
+}));

@@ -101,6 +101,21 @@ The review is a human-governed adaptation loop:
 5. **Adjust** — apply only accepted changes through the budget API, then read
    the overview again to verify the result.
 
+Encode step 3 as a reviewable proposal rather than calling a budget mutation
+endpoint directly:
+
+```bash
+lifeos budget propose examples/time-budget-adjustment.json
+lifeos budget list
+lifeos budget commit <proposal-id>   # or reject it
+```
+
+Every proposal must include a plain evidence summary, a positive count of
+completed periods observed, and one alternative. The preview records the
+before/after item and total-plan effect. Commit rechecks current state inside
+the transaction; if the budget changed after preview, discard the stale
+proposal and prepare a new one.
+
 Use these as review signals, not automatic rules:
 
 - **Missing item:** a coherent unbudgeted category appears in at least two

@@ -1,0 +1,13 @@
+{
+  "kind": "time",
+  "action": "resize",
+  "target_id": "time_learning",
+  "change": {
+    "weekly_minutes": 360
+  },
+  "evidence": {
+    "summary": "Learning exceeded its allocation in three of four completed synthetic weeks.",
+    "observed_periods": 4,
+    "alternative": "Keep five hours and reduce the number of active learning goals."
+  }
+}

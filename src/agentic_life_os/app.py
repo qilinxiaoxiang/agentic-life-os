@@ -12,13 +12,16 @@ from . import db
 from .service import (
     ValidationError,
     amount_to_minor,
+    budget_adjustment_dict,
     commit_proposal,
     context_today,
+    decide_budget_adjustment,
     minor_to_amount,
     money_overview,
     parse_date,
     preview_proposal,
     proposal_dict,
+    propose_budget_adjustment,
     task_to_dict,
     time_overview,
     week_start_for,
@@ -82,11 +85,19 @@ def create_app(test_config: dict | None = None) -> Flask:
                 "SELECT * FROM ledger_proposals WHERE status='pending' ORDER BY created_at DESC"
             )
         ]
+        adjustment_proposals = [
+            budget_adjustment_dict(row)
+            for row in g.db.execute(
+                """SELECT * FROM budget_adjustment_proposals
+                   WHERE status='pending' ORDER BY created_at DESC"""
+            )
+        ]
         return render_template(
             "index.html",
             context=context,
             settings=settings,
             proposals=proposals,
+            adjustment_proposals=adjustment_proposals,
             money_symbol=_currency_symbol(settings["currency"]),
             money=minor_to_amount,
             compact_money=_compact_money,
@@ -617,6 +628,35 @@ def create_app(test_config: dict | None = None) -> Flask:
         if row["kind"] != kind:
             raise ValidationError("proposal kind does not match endpoint")
         return jsonify({"ok": True, "proposal": commit_proposal(g.db, proposal_id)})
+
+    @app.post("/api/v1/budget-adjustments")
+    def create_budget_adjustment():
+        proposal = propose_budget_adjustment(g.db, _json())
+        status = 201 if proposal["status"] == "pending" else 200
+        return jsonify({"ok": True, "proposal": proposal}), status
+
+    @app.get("/api/v1/budget-adjustments")
+    def list_budget_adjustments():
+        status = request.args.get("status", "pending")
+        if status not in {"pending", "committed", "rejected"}:
+            raise ValidationError("status must be pending, committed, or rejected")
+        rows = g.db.execute(
+            """SELECT * FROM budget_adjustment_proposals
+               WHERE status=? ORDER BY created_at DESC""",
+            (status,),
+        )
+        return jsonify(
+            {"ok": True, "proposals": [budget_adjustment_dict(row) for row in rows]}
+        )
+
+    @app.post("/api/v1/budget-adjustments/<proposal_id>/<decision>")
+    def decide_adjustment(proposal_id: str, decision: str):
+        return jsonify(
+            {
+                "ok": True,
+                "proposal": decide_budget_adjustment(g.db, proposal_id, decision),
+            }
+        )
 
     return app
 
