@@ -102,6 +102,17 @@ def parser() -> argparse.ArgumentParser:
 
     proposals = commands.add_parser("proposals", help="List ledger proposals")
     proposals.add_argument("--status", choices=["pending", "committed"], default="pending")
+    budget = commands.add_parser("budget", help="Review changes to the time or money model")
+    budget_commands = budget.add_subparsers(dest="budget_command", required=True)
+    propose = budget_commands.add_parser("propose")
+    propose.add_argument("json_file")
+    for action in ("commit", "reject"):
+        decision = budget_commands.add_parser(action)
+        decision.add_argument("proposal_id")
+    budget_list = budget_commands.add_parser("list")
+    budget_list.add_argument(
+        "--status", choices=["pending", "committed", "rejected"], default="pending"
+    )
     return root
 
 
@@ -158,6 +169,21 @@ def run(args: argparse.Namespace) -> dict:
         )
     if args.command == "proposals":
         return request_json(base, "GET", f"/api/v1/proposals?status={args.status}")
+    if args.command == "budget":
+        if args.budget_command == "propose":
+            return request_json(
+                base, "POST", "/api/v1/budget-adjustments", read_payload(args.json_file)
+            )
+        if args.budget_command == "list":
+            return request_json(
+                base, "GET", f"/api/v1/budget-adjustments?status={args.status}"
+            )
+        return request_json(
+            base,
+            "POST",
+            f"/api/v1/budget-adjustments/{args.proposal_id}/{args.budget_command}",
+            {},
+        )
     raise SystemExit("Unknown command")
 
 

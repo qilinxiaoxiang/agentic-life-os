@@ -113,3 +113,19 @@ CREATE TABLE IF NOT EXISTS ledger_proposals (
   committed_at TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_proposals_kind_hash ON ledger_proposals(kind, payload_hash);
+
+CREATE TABLE IF NOT EXISTS budget_adjustment_proposals (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL CHECK (kind IN ('money', 'time')),
+  action TEXT NOT NULL CHECK (action IN ('create', 'resize', 'retire')),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'committed', 'rejected')),
+  payload_hash TEXT NOT NULL UNIQUE,
+  payload_json TEXT NOT NULL,
+  preview_json TEXT NOT NULL,
+  result_json TEXT,
+  created_at TEXT NOT NULL,
+  decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_budget_adjustments_status
+  ON budget_adjustment_proposals(status, created_at);

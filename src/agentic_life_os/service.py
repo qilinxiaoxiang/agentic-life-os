@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -423,6 +424,307 @@ def commit_proposal(conn: sqlite3.Connection, proposal_id: str) -> dict:
         )
     return proposal_dict(
         conn.execute("SELECT * FROM ledger_proposals WHERE id=?", (proposal_id,)).fetchone()
+    )
+
+
+def _adjustment_evidence(payload: dict) -> dict:
+    evidence = payload.get("evidence")
+    if not isinstance(evidence, dict):
+        raise ValidationError("evidence must be an object")
+    summary = str(evidence.get("summary", "")).strip()
+    alternative = str(evidence.get("alternative", "")).strip()
+    try:
+        observed_periods = int(evidence.get("observed_periods"))
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("evidence.observed_periods must be a positive integer") from exc
+    if not summary or not alternative or observed_periods <= 0:
+        raise ValidationError(
+            "evidence needs summary, positive observed_periods, and an alternative"
+        )
+    return {
+        "summary": summary,
+        "observed_periods": observed_periods,
+        "alternative": alternative,
+    }
+
+
+def normalize_budget_adjustment(conn: sqlite3.Connection, payload: dict) -> dict:
+    kind = str(payload.get("kind", "")).lower()
+    action = str(payload.get("action", "")).lower()
+    if kind not in {"money", "time"}:
+        raise ValidationError("kind must be money or time")
+    if action not in {"create", "resize", "retire"}:
+        raise ValidationError("action must be create, resize, or retire")
+    evidence = _adjustment_evidence(payload)
+    change = payload.get("change")
+    if not isinstance(change, dict):
+        raise ValidationError("change must be an object")
+
+    table = "money_budget_items" if kind == "money" else "time_budget_items"
+    target_id = str(payload.get("target_id", "")).strip() or None
+    before = None
+    if action != "create":
+        if not target_id:
+            raise ValidationError("target_id is required for resize or retire")
+        row = conn.execute(f"SELECT * FROM {table} WHERE id=?", (target_id,)).fetchone()
+        if not row:
+            raise ValidationError(f"unknown {kind} budget target: {target_id}")
+        before = dict(row)
+
+    if kind == "money":
+        if action == "create":
+            month = str(change.get("month", ""))
+            if not re.fullmatch(r"\d{4}-\d{2}", month):
+                raise ValidationError("change.month must be YYYY-MM")
+            title = str(change.get("title", "")).strip()
+            category = str(change.get("category", "")).strip()
+            direction = str(change.get("direction", "expense"))
+            currency = str(change.get("currency", "")).upper()
+            if not title or not category or len(currency) != 3:
+                raise ValidationError("money create needs title, category, and 3-letter currency")
+            if direction not in {"expense", "income"}:
+                raise ValidationError("direction must be expense or income")
+            after = {
+                "month": month,
+                "title": title,
+                "category": category,
+                "direction": direction,
+                "amount_minor": amount_to_minor(change.get("amount")),
+                "currency": currency,
+            }
+        elif action == "resize":
+            after = {**before, "amount_minor": amount_to_minor(change.get("amount"))}
+        else:
+            used = conn.execute(
+                "SELECT COUNT(*) FROM money_transactions WHERE budget_item_id=?", (target_id,)
+            ).fetchone()[0]
+            if used:
+                raise ValidationError("money budget item with transactions cannot be retired")
+            after = None
+        scope = after or before
+        total_before = conn.execute(
+            """SELECT COALESCE(SUM(amount_minor),0) FROM money_budget_items
+               WHERE month=? AND currency=? AND direction=?""",
+            (scope["month"], scope["currency"], scope["direction"]),
+        ).fetchone()[0]
+        old_amount = before["amount_minor"] if before else 0
+        new_amount = after["amount_minor"] if after else 0
+        total_after = total_before - old_amount + new_amount
+        total = {
+            "unit": f"minor-{scope['currency']}",
+            "scope": f"{scope['month']}:{scope['direction']}",
+            "before": total_before,
+            "after": total_after,
+            "delta": total_after - total_before,
+        }
+    else:
+        if action == "create":
+            week_start = str(change.get("week_start", ""))
+            if parse_date(week_start, "change.week_start").weekday() != 0:
+                raise ValidationError("change.week_start must be a Monday")
+            label = str(change.get("label", "")).strip()
+            category = str(change.get("category", "")).strip()
+            protection = str(change.get("protection", "flexible"))
+            if not label or not category:
+                raise ValidationError("time create needs label and category")
+            if protection not in {"committed", "protected", "flexible"}:
+                raise ValidationError("invalid protection")
+            try:
+                minutes = int(change.get("weekly_minutes"))
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("weekly_minutes must be an integer") from exc
+            if minutes < 0:
+                raise ValidationError("weekly_minutes cannot be negative")
+            after = {
+                "week_start": week_start,
+                "label": label,
+                "category": category,
+                "weekly_minutes": minutes,
+                "protection": protection,
+            }
+        elif action == "resize":
+            try:
+                minutes = int(change.get("weekly_minutes"))
+            except (TypeError, ValueError) as exc:
+                raise ValidationError("weekly_minutes must be an integer") from exc
+            if minutes < 0:
+                raise ValidationError("weekly_minutes cannot be negative")
+            after = {**before, "weekly_minutes": minutes}
+        else:
+            used = conn.execute(
+                "SELECT COUNT(*) FROM time_entries WHERE budget_item_id=?", (target_id,)
+            ).fetchone()[0]
+            if used:
+                raise ValidationError("time budget item with entries cannot be retired")
+            after = None
+        scope = after or before
+        total_before = conn.execute(
+            "SELECT COALESCE(SUM(weekly_minutes),0) FROM time_budget_items WHERE week_start=?",
+            (scope["week_start"],),
+        ).fetchone()[0]
+        old_minutes = before["weekly_minutes"] if before else 0
+        new_minutes = after["weekly_minutes"] if after else 0
+        total_after = total_before - old_minutes + new_minutes
+        if total_after > 7 * 24 * 60:
+            raise ValidationError("proposed weekly time budget exceeds 168 hours")
+        total = {
+            "unit": "minutes",
+            "scope": scope["week_start"],
+            "before": total_before,
+            "after": total_after,
+            "delta": total_after - total_before,
+        }
+    return {
+        "kind": kind,
+        "action": action,
+        "target_id": target_id,
+        "before": before,
+        "after": after,
+        "total_effect": total,
+        "evidence": evidence,
+    }
+
+
+def budget_adjustment_dict(row) -> dict:
+    item = dict(row)
+    item["payload"] = json.loads(item.pop("payload_json"))
+    item["preview"] = json.loads(item.pop("preview_json"))
+    result = item.pop("result_json")
+    item["result"] = json.loads(result) if result else None
+    item.pop("payload_hash", None)
+    return item
+
+
+def propose_budget_adjustment(conn: sqlite3.Connection, payload: dict) -> dict:
+    preview = normalize_budget_adjustment(conn, payload)
+    canonical = json_text(payload)
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
+    existing = conn.execute(
+        "SELECT * FROM budget_adjustment_proposals WHERE payload_hash=?", (digest,)
+    ).fetchone()
+    if existing:
+        return budget_adjustment_dict(existing)
+    proposal_id = new_id("budget_adjustment")
+    conn.execute(
+        """INSERT INTO budget_adjustment_proposals
+           (id,kind,action,status,payload_hash,payload_json,preview_json,created_at)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (
+            proposal_id,
+            preview["kind"],
+            preview["action"],
+            "pending",
+            digest,
+            json_text(payload),
+            json_text(preview),
+            utc_now(),
+        ),
+    )
+    conn.commit()
+    return budget_adjustment_dict(
+        conn.execute(
+            "SELECT * FROM budget_adjustment_proposals WHERE id=?", (proposal_id,)
+        ).fetchone()
+    )
+
+
+def decide_budget_adjustment(
+    conn: sqlite3.Connection, proposal_id: str, decision: str
+) -> dict:
+    if decision not in {"commit", "reject"}:
+        raise ValidationError("decision must be commit or reject")
+    row = conn.execute(
+        "SELECT * FROM budget_adjustment_proposals WHERE id=?", (proposal_id,)
+    ).fetchone()
+    if not row:
+        raise ValidationError("budget adjustment proposal not found")
+    if row["status"] != "pending":
+        return budget_adjustment_dict(row)
+    now = utc_now()
+    if decision == "reject":
+        conn.execute(
+            """UPDATE budget_adjustment_proposals
+               SET status='rejected',result_json=?,decided_at=? WHERE id=?""",
+            (json_text({"decision": "rejected"}), now, proposal_id),
+        )
+        conn.commit()
+        return budget_adjustment_dict(
+            conn.execute(
+                "SELECT * FROM budget_adjustment_proposals WHERE id=?", (proposal_id,)
+            ).fetchone()
+        )
+
+    payload = json.loads(row["payload_json"])
+    stored_preview = json.loads(row["preview_json"])
+    with transaction(conn):
+        current_preview = normalize_budget_adjustment(conn, payload)
+        if current_preview != stored_preview:
+            raise ValidationError("budget state changed after proposal; create a fresh review")
+        after = current_preview["after"]
+        kind = current_preview["kind"]
+        action = current_preview["action"]
+        target_id = current_preview["target_id"]
+        table = "money_budget_items" if kind == "money" else "time_budget_items"
+        if action == "retire":
+            conn.execute(f"DELETE FROM {table} WHERE id=?", (target_id,))
+            changed_id = target_id
+        elif action == "resize":
+            field = "amount_minor" if kind == "money" else "weekly_minutes"
+            conn.execute(
+                f"UPDATE {table} SET {field}=?,updated_at=? WHERE id=?",
+                (after[field], now, target_id),
+            )
+            changed_id = target_id
+        else:
+            changed_id = new_id(f"{kind}_budget")
+            order = conn.execute(
+                f"SELECT COALESCE(MAX(sort_order),-1)+1 FROM {table}"
+            ).fetchone()[0]
+            if kind == "money":
+                conn.execute(
+                    """INSERT INTO money_budget_items
+                       (id,month,title,category,direction,amount_minor,currency,sort_order,created_at,updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        changed_id,
+                        after["month"],
+                        after["title"],
+                        after["category"],
+                        after["direction"],
+                        after["amount_minor"],
+                        after["currency"],
+                        order,
+                        now,
+                        now,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO time_budget_items
+                       (id,week_start,label,category,weekly_minutes,protection,sort_order,created_at,updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (
+                        changed_id,
+                        after["week_start"],
+                        after["label"],
+                        after["category"],
+                        after["weekly_minutes"],
+                        after["protection"],
+                        order,
+                        now,
+                        now,
+                    ),
+                )
+        result = {"decision": "committed", "changed_id": changed_id}
+        conn.execute(
+            """UPDATE budget_adjustment_proposals
+               SET status='committed',result_json=?,decided_at=? WHERE id=?""",
+            (json_text(result), now, proposal_id),
+        )
+    return budget_adjustment_dict(
+        conn.execute(
+            "SELECT * FROM budget_adjustment_proposals WHERE id=?", (proposal_id,)
+        ).fetchone()
     )
 
 

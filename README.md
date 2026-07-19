@@ -17,6 +17,9 @@ approval, and change.
 Agentic Life OS is one open-source test of this method. The personal operating
 system is the proof; **the operator shift is the point**.
 
+The longer rationale is in
+[Software Is Switching Operators](https://shawnxiang.com/articles/agentic-life-os/).
+
 ## The operator shift
 
 This project calls the pattern **Agent-Mediated Software**:
@@ -121,7 +124,10 @@ The operating loop is deliberately small:
 The same agent can periodically review completed periods and propose changes
 to the model itself: add a missing budget category, resize a repeatedly missed
 allocation, or retire an unused one. Adaptation is evidence-based and never
-silent; budget changes still require explicit human confirmation. The full
+silent. Each proposal stores the observed-period count, evidence summary, an
+alternative, the before/after item, and its effect on the total plan. The UI
+then exposes separate approve and reject actions; a stale proposal cannot
+overwrite a budget that changed after review. The full
 policy is in the [agent guide](docs/agent-guide.md#adaptive-budget-review).
 
 ### Codex example
@@ -144,6 +150,9 @@ lifeos money commit <proposal-id>
 lifeos time overview
 lifeos time preview examples/time-batch.json
 lifeos time commit <proposal-id>
+lifeos budget propose examples/time-budget-adjustment.json
+lifeos budget list
+lifeos budget commit <proposal-id>   # or: lifeos budget reject <proposal-id>
 ```
 
 All commands print JSON. The same operations are documented in
